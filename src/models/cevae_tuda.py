@@ -151,9 +151,9 @@ class CEVAE_TUDA(BaseModel):
                 real_dataset,
                 batch_size=self._real_batch_size,
                 shuffle=True,
-                num_workers=4,
+                num_workers=2,
                 drop_last=True,
-                persistent_workers=True,
+                persistent_workers=False,
             )
             self._real_iter = iter(self._real_dataloader)
             logger.info(f"Loaded {len(real_dataset)} unpaired real underwater images "
@@ -237,6 +237,7 @@ class CEVAE_TUDA(BaseModel):
         self.log_dict(log_dict, prog_bar=False, logger=True, on_step=True,
                       on_epoch=True, batch_size=bs, sync_dist=True)
         self.manual_backward(g_loss)
+        torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
         optimizer_g.step()
         optimizer_g.zero_grad()
         self.untoggle_optimizer(optimizer_g)
@@ -249,6 +250,7 @@ class CEVAE_TUDA(BaseModel):
             self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True,
                           on_epoch=True, batch_size=bs, sync_dist=True)
             self.manual_backward(d_loss)
+            torch.nn.utils.clip_grad_norm_(self.loss.discriminator.parameters(), max_norm=1.0)
             optimizer_d.step()
             optimizer_d.zero_grad()
             self.untoggle_optimizer(optimizer_d)
@@ -296,6 +298,7 @@ class CEVAE_TUDA(BaseModel):
                           on_epoch=True, batch_size=bs, sync_dist=True)
 
             self.manual_backward(feat_d_loss)
+            torch.nn.utils.clip_grad_norm_(self.feature_disc.parameters(), max_norm=1.0)
             optimizer_feat_d.step()
             optimizer_feat_d.zero_grad()
             self.untoggle_optimizer(optimizer_feat_d)

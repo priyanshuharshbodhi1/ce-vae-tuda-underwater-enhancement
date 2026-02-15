@@ -57,7 +57,8 @@ lightning:
     devices: 1 # Single GPU (T4)
     precision: 16-mixed # Mixed precision for 2x speedup + half VRAM
     check_val_every_n_epoch: 5
-    gradient_clip_val: 1.0 # Stabilize training
+    # Note: gradient_clip_val removed — incompatible with manual optimization
+    # Gradient clipping is handled manually in CEVAE_TUDA.training_step()
 
 data:
   target: src.data.dataset_wrapper.DataModuleFromConfig
