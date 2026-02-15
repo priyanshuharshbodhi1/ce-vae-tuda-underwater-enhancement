@@ -8,12 +8,13 @@ This guide explains exactly how to run your improved model on Kaggle or Google C
 
 **Always use the `.ckpt` version** of the checkpoint. pyTorch Lightning (which this project uses) is designed to load directly from these files. You do **not** need to extract it.
 
-### Code Transfer Options
+### Code Transfer Options (GitHub Recommended)
 
-There are two ways to get your code onto Kaggle/Colab:
+I have created a dedicated repository for your project under your account:
+**URL**: `https://github.com/priyanshuharshbodhi1/ce-vae-tuda-underwater-enhancement`
 
-1. **GitHub (Recommended)**: Push your code to a private or public GitHub repo. Then you just run `!git clone YOUR_REPO_URL` in the notebook.
-2. **Local ZIP**: Zip your project folder (excluding `venv` and `data`) and upload it directly.
+1. **GitHub (Best)**: Just run `!git clone https://github.com/priyanshuharshbodhi1/ce-vae-tuda-underwater-enhancement.git` in the notebook.
+2. **Local ZIP**: If you prefer, zip your project folder (excluding `venv` and `data`) and upload it directly.
 
 ## 2. Option A: Running on Kaggle (Recommended)
 
@@ -24,6 +25,15 @@ There are two ways to get your code onto Kaggle/Colab:
 3. Once the new notebook opens, go to **File** -> **Import Notebook**.
 4. Click the **Upload** tab and select the `notebooks/train_cevae_tuda.ipynb` file from your computer.
 5. In the right sidebar, under **Session Options**, set **Accelerator** to **GPU T4 x2**.
+
+### Step 2: Clone the Repo
+
+In the first cell of your Kaggle notebook, run:
+
+```python
+!git clone https://github.com/priyanshuharshbodhi1/ce-vae-tuda-underwater-enhancement.git
+%cd ce-vae-tuda-underwater-enhancement
+```
 
 ### Step 2: Add Datasets
 
