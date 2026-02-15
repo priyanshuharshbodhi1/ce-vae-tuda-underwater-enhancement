@@ -4,44 +4,40 @@ This guide explains exactly how to run your improved model on Kaggle or Google C
 
 ## 1. Prepare Your Files
 
-You need a single folder containing your code. If you are on your local machine, zip the entire project (excluding `venv`, `__pycache__`, and `data`):
+### Checkpoint Format
 
-```bash
-zip -r ce-vae-tuda.zip . -x "venv/*" -x "__pycache__/*" -x "data/*" -x ".git/*"
-```
+**Always use the `.ckpt` version** of the checkpoint. pyTorch Lightning (which this project uses) is designed to load directly from these files. You do **not** need to extract it.
 
-Or simply upload the files manually.
+### Code Transfer Options
+
+There are two ways to get your code onto Kaggle/Colab:
+
+1. **GitHub (Recommended)**: Push your code to a private or public GitHub repo. Then you just run `!git clone YOUR_REPO_URL` in the notebook.
+2. **Local ZIP**: Zip your project folder (excluding `venv` and `data`) and upload it directly.
 
 ## 2. Option A: Running on Kaggle (Recommended)
 
-Kaggle gives you 30 hours of free T4 GPU per week and fast dataset access.
+### Step 1: Upload the Notebook from your PC
 
-### Step 1: Create a New Notebook
+1. Go to your [Kaggle Home](https://www.kaggle.com/).
+2. Click the **+ Create** button in the top left and select **New Notebook**.
+3. Once the new notebook opens, go to **File** -> **Import Notebook**.
+4. Click the **Upload** tab and select the `notebooks/train_cevae_tuda.ipynb` file from your computer.
+5. In the right sidebar, under **Session Options**, set **Accelerator** to **GPU T4 x2**.
 
-1. Go to [Kaggle](https://www.kaggle.com/).
-2. Click **Create** -> **New Notebook**.
-3. In the right sidebar, under **Session Options**, set **Accelerator** to **GPU T4 x2** (or x1).
+### Step 2: Add Datasets
 
-### Step 2: Upload Datasets
+1. In the right sidebar, click **+ Add Input**.
+2. **Search** for:
+   - `noureldin199/lsui-large-scale-underwater-image-dataset` (LSUI)
+   - `larjeck/uieb-dataset-raw` (UIEB)
+3. **Upload Checkpoint**: Click **+ Add Input** -> **Upload Dataset**. Upload your `lsui-cevae-epoch119.ckpt` file here. Kaggle will treat this file as a dataset.
 
-1. In the right sidebar, click **Add Input**.
-2. **Search** for "LSUI Dataset" or upload your own `LSUI` folder.
-3. **Search** for "UIEB Dataset" (for real images) or upload your own `real_underwater` folder.
-4. **Upload** your pre-trained checkpoint `lsui-cevae-epoch119.ckpt` as a dataset.
+### Step 3: Run
 
-### Step 3: Upload Code
-
-1. Click **File** -> **Import Notebook** -> **Upload**.
-2. Select `notebooks/train_cevae_tuda.ipynb`.
-3. Kaggle might not let you upload the whole generic code folder easily. **Simpler Alternative:**
-   - Create a generic "Script" or "Utility Script" on Kaggle with your `.py` files.
-   - **OR (Easiest)**: Just clone your GitHub repo in the first cell of the notebook (as set up in the notebook).
-
-### Step 4: Run
-
-1. Run the cells in order.
-2. The notebook handles dependencies (`albumentations`, `lightning`, etc.).
-3. It will train for 30 epochs (~1.5 hours).
+1. If you used GitHub, run the `!git clone` cell.
+2. If you uploaded a ZIP, use the `!unzip` command.
+3. Follow the notebook cells. It will take ~1.5 - 2 hours to train.
 4. **Results**: Upon completion, check the **Output** section for `results_comparison.txt` and `comparison_results.png`.
 
 ---

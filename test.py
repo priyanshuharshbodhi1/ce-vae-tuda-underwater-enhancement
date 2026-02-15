@@ -1,6 +1,7 @@
 import argparse
 import shutil
 import sys
+import time
 
 from torch.utils.data import Dataset, DataLoader
 
@@ -142,17 +143,24 @@ def run(opt):
     testing_data_loader = DataLoader(dataset=test_dset, batch_size=opt.batch_size, shuffle=False, num_workers=8)
     print(colored(f'Reconstructing with batch size {opt.batch_size}', print_color))
 
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
+    if opt.device.startswith('cuda'):
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+    
     times = []
 
     for iteration_test, (imgs, img_paths) in tqdm(enumerate(testing_data_loader), total=len(testing_data_loader)):
         imgs = imgs.to(model.device)
-        start.record()
-        x_rec = reconstruction_batch(imgs, model)
-        end.record()
-        torch.cuda.synchronize()
-        times.append(start.elapsed_time(end))
+        if opt.device.startswith('cuda'):
+            start.record()
+            x_rec = reconstruction_batch(imgs, model)
+            end.record()
+            torch.cuda.synchronize()
+            times.append(start.elapsed_time(end))
+        else:
+            t0 = time.time()
+            x_rec = reconstruction_batch(imgs, model)
+            times.append((time.time() - t0) * 1000)
 
         rec_imgs = [custom_to_pil(x) for x in x_rec]
 
