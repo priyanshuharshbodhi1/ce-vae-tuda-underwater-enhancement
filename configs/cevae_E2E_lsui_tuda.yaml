@@ -1,0 +1,94 @@
+# CE-VAE + TUDA Feature-Level Alignment
+# Fine-tuning config optimized for free-tier GPU (T4, 15GB VRAM)
+
+model:
+  target: src.models.cevae_tuda.CEVAE_TUDA
+  params:
+    discriminator: False
+    # Start from your trained CE-VAE checkpoint
+    ckpt_path: data/lsui-cevae-epoch119.ckpt
+    embed_dim: 256
+
+    ddconfig:
+      double_z: False
+      z_channels: 256
+      resolution: 256
+      in_channels: 3
+      out_ch: 3
+      ch: 128
+      ch_mult: [1, 1, 2, 2, 4]
+      num_res_blocks: 2
+      attn_resolutions: [16]
+      dropout: 0.0
+
+    lossconfig:
+      target: src.modules.losses.combined.ReconstructionLossWithDiscriminator
+      params:
+        pixelloss_weight: 10.0
+        perceptual_weight: 1.0
+        gdl_loss_weight: 0.0
+        color_loss_weight: 0.0
+        ssim_loss_weight: 1.0
+        disc_enabled: False
+
+    optimizer:
+      base_learning_rate: 4.5e-6
+
+    # === TUDA Feature Alignment Settings ===
+    # Weight for feature alignment adversarial loss (from TUDA paper λ₄=0.0005)
+    feature_alignment_weight: 0.0005
+    # Start feature alignment from step 0 (since we're fine-tuning, not training from scratch)
+    feature_disc_start: 0
+    # WGAN-GP gradient penalty weight (standard value)
+    gradient_penalty_weight: 10.0
+    # Feature discriminator hidden channels (small = fast)
+    feature_disc_ndf: 128
+    # Freeze first 3 encoder blocks (of 5) — only fine-tune last 2
+    freeze_encoder_blocks: 3
+    # Path to unpaired real underwater images (one of these must be set)
+    real_images_list_file: data/real_underwater_images.txt
+    # real_images_dir: data/real_underwater  # Alternative: specify a directory
+    real_batch_size: 4
+
+lightning:
+  trainer:
+    max_epochs: 30 # Fine-tuning only needs ~30 epochs
+    accelerator: gpu
+    devices: 1 # Single GPU (T4)
+    precision: 16-mixed # Mixed precision for 2x speedup + half VRAM
+    check_val_every_n_epoch: 5
+    gradient_clip_val: 1.0 # Stabilize training
+
+data:
+  target: src.data.dataset_wrapper.DataModuleFromConfig
+  params:
+    dataset_name: "LSUI"
+    train_batch_size: 6 # Fits in T4 15GB with AMP
+    val_batch_size: 8
+    num_workers: 2 # Kaggle/Colab have limited CPU workers
+    train:
+      target: src.data.image_enhancement.DatasetTrainFromImageFileList
+      params:
+        training_images_list_file: data/LSUI_train_input.txt
+        target_images_list_file: data/LSUI_train_target.txt
+        random_crop: True
+        random_flip: True
+        color_jitter:
+          brightness: [0.9, 1.1]
+          contrast: [0.9, 1.1]
+          saturation: [0.9, 1.1]
+          hue: [-0.02, 0.02]
+        max_size: 288
+        size: 256
+    validation:
+      target: src.data.image_enhancement.DatasetTestFromImageFileList
+      params:
+        test_images_list_file: data/LSUI_val_input.txt
+        test_target_images_list_file: data/LSUI_val_target.txt
+        size: 256
+    test:
+      target: src.data.image_enhancement.DatasetTestFromImageFileList
+      params:
+        test_images_list_file: data/LSUI_val_input.txt
+        test_target_images_list_file: data/LSUI_val_target.txt
+        size: 256
