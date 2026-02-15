@@ -51,7 +51,13 @@ def _psnr(img1, img2):
 
 def _non_reference_metrics(img_rgb: np.ndarray, dict_key_suffix:str = '') -> Dict:
     uiqm_, uicm, uism, uiconm = uiqm(img_rgb)
-    return {f'niqe{dict_key_suffix}': niqe(img_rgb),
+    try:
+        niqe_val = niqe(img_rgb)
+        if np.isnan(niqe_val):
+            niqe_val = 0.0
+    except Exception:
+        niqe_val = 0.0
+    return {f'niqe{dict_key_suffix}': niqe_val,
             f'uiqm{dict_key_suffix}': uiqm_,
             f'uism{dict_key_suffix}': uism,
             f'uciqe{dict_key_suffix}': uciqe(img_rgb)

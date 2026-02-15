@@ -280,10 +280,23 @@ def niqe(img,
     mu_distparam = np.nanmean(distparam, axis=0)
     # use nancov. ref: https://ww2.mathworks.cn/help/stats/nancov.html
     distparam_no_nan = distparam[~np.isnan(distparam).any(axis=1)]
+
+    # Guard: if too few valid patches, return NaN instead of crashing
+    if distparam_no_nan.shape[0] < 2:
+        return float('nan')
+
     cov_distparam = np.cov(distparam_no_nan, rowvar=False)
 
+    # Guard: if covariance contains NaN/Inf, SVD will fail
+    if np.any(np.isnan(cov_distparam)) or np.any(np.isinf(cov_distparam)):
+        return float('nan')
+
     # compute niqe quality, Eq. 10 in the paper
-    invcov_param = np.linalg.pinv((cov_pris_param + cov_distparam) / 2)
+    try:
+        invcov_param = np.linalg.pinv((cov_pris_param + cov_distparam) / 2)
+    except np.linalg.LinAlgError:
+        return float('nan')
+
     quality = np.matmul(
         np.matmul((mu_pris_param - mu_distparam), invcov_param),
         np.transpose((mu_pris_param - mu_distparam)))
