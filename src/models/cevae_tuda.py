@@ -215,13 +215,11 @@ class CEVAE_TUDA(BaseModel):
                     real_imgs = real_imgs[..., None]
                 real_imgs = real_imgs.permute(0, 3, 1, 2).to(x.device).float()
 
-                # Get encoder features for both domains
-                with torch.no_grad():
-                    # Don't backprop through feature disc for generator update
-                    pass
+                # Align batch sizes (paired batch may differ from real batch)
+                min_bs = min(x.shape[0], real_imgs.shape[0])
 
-                enc_paired = self.encoder(x)  # Features from paired data
-                enc_real = self.encoder(real_imgs)  # Features from real data
+                enc_paired = self.encoder(x[:min_bs])  # Features from paired data
+                enc_real = self.encoder(real_imgs[:min_bs])  # Features from real data
 
                 # Generator wants feature disc to think paired features look like real
                 # (minimize domain gap by fooling discriminator)
@@ -264,15 +262,18 @@ class CEVAE_TUDA(BaseModel):
 
             # Get features (detached from encoder graph)
             with torch.no_grad():
-                enc_paired = self.encoder(x).detach()
                 real_batch = self._get_real_batch()
                 if real_batch is not None:
                     real_imgs = real_batch["image"]
                     if len(real_imgs.shape) == 3:
                         real_imgs = real_imgs[..., None]
                     real_imgs = real_imgs.permute(0, 3, 1, 2).to(x.device).float()
-                    enc_real = self.encoder(real_imgs).detach()
+                    # Align batch sizes (paired batch may differ from real batch)
+                    min_bs = min(x.shape[0], real_imgs.shape[0])
+                    enc_paired = self.encoder(x[:min_bs]).detach()
+                    enc_real = self.encoder(real_imgs[:min_bs]).detach()
                 else:
+                    enc_paired = self.encoder(x).detach()
                     enc_real = enc_paired  # Fallback
 
             # WGAN loss: maximize D(real) - D(paired)
@@ -282,7 +283,7 @@ class CEVAE_TUDA(BaseModel):
             # Wasserstein loss
             feat_d_loss = torch.mean(pred_paired) - torch.mean(pred_real)
 
-            # Gradient penalty
+            # Gradient penalty (both tensors now have same batch size)
             gp = compute_gradient_penalty(
                 self.feature_disc, enc_real, enc_paired, x.device
             )
