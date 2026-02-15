@@ -231,7 +231,7 @@ if __name__ == "__main__":
         # base_configs = sorted(glob.glob(os.path.join(logdir, "configs/*.yaml")))
         # opt.config = base_configs +log opt.config
         _tmp = logdir.split("/")
-        nowname = _tmp[_tmp.index("vcgan_logs") + 1]
+        nowname = _tmp[-1]  # Use last component of logdir path
     else:
         if opt.name:
             name = "_" + opt.name
