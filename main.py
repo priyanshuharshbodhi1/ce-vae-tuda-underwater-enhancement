@@ -389,7 +389,7 @@ if __name__ == "__main__":
     # run
     resume_ckpt = getattr(opt, 'resume_from_checkpoint', None)
     try:
-        trainer.fit(model, data, ckpt_path=resume_ckpt)
+        trainer.fit(model, data, ckpt_path=resume_ckpt, weights_only=False)
     except Exception:
         melk()
         raise
