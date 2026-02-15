@@ -326,9 +326,8 @@ if __name__ == "__main__":
                 "filename": "{epoch:04}",
                 "verbose": True,
                 "save_last": True,
-                "monitor": "val/psnr",
-                "save_top_k": 3,
-                "mode": "max"
+                "every_n_epochs": 1,
+                "save_top_k": -1,
             }
         }
     }
@@ -388,8 +387,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGUSR2, divein)
 
     # run
+    resume_ckpt = getattr(opt, 'resume_from_checkpoint', None)
     try:
-        trainer.fit(model, data)
+        trainer.fit(model, data, ckpt_path=resume_ckpt)
     except Exception:
         melk()
         raise
