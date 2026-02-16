@@ -52,7 +52,7 @@ model:
 
 lightning:
   trainer:
-    max_epochs: 15 # Fine-tuning only needs ~15 epochs
+    max_epochs: 10 # Fine-tuning only needs ~10 epochs
     accelerator: gpu
     devices: 1 # Single GPU (T4)
     precision: 16-mixed # Mixed precision for 2x speedup + half VRAM
