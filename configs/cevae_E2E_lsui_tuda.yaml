@@ -52,11 +52,11 @@ model:
 
 lightning:
   trainer:
-    max_epochs: 10 # Fine-tuning only needs ~10 epochs
+    max_epochs: 30 # Fine-tuning only needs ~10 epochs
     accelerator: gpu
     devices: 1 # Single GPU (T4)
     precision: 16-mixed # Mixed precision for 2x speedup + half VRAM
-    check_val_every_n_epoch: 5
+    check_val_every_n_epoch: 1
     # Note: gradient_clip_val removed — incompatible with manual optimization
     # Gradient clipping is handled manually in CEVAE_TUDA.training_step()
 
