@@ -49,7 +49,6 @@ lightning:
     devices: 1
     precision: 16-mixed
     check_val_every_n_epoch: 2
-    strategy: ddp_find_unused_parameters_true
 
 data:
   target: src.data.dataset_wrapper.DataModuleFromConfig
