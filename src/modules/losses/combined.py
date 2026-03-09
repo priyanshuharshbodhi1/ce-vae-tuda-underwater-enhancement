@@ -105,6 +105,33 @@ def vanilla_d_loss(logits_real, logits_fake):
     return d_loss
 
 
+def wgan_gp_d_loss(logits_real, logits_fake):
+    """Wasserstein GAN discriminator loss (without GP term, added separately)."""
+    return torch.mean(logits_fake) - torch.mean(logits_real)
+
+
+def compute_output_gradient_penalty(discriminator, real_data, fake_data, device):
+    """WGAN-GP gradient penalty on interpolated output images (from TUDA).
+    Uses float32 explicitly for numerical stability with AMP/mixed precision."""
+    batch_size = min(real_data.size(0), fake_data.size(0))
+    real_data = real_data[:batch_size].float()
+    fake_data = fake_data[:batch_size].float()
+    alpha = torch.rand(batch_size, 1, 1, 1, device=device)
+    interpolates = (alpha * real_data + (1 - alpha) * fake_data).requires_grad_(True)
+    with torch.amp.autocast('cuda', enabled=False):
+        d_interpolates = discriminator(interpolates)
+    gradients = torch.autograd.grad(
+        outputs=d_interpolates,
+        inputs=interpolates,
+        grad_outputs=torch.ones_like(d_interpolates),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+    gradients = gradients.view(batch_size, -1)
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
+
+
 # loss GAN
 class ReconstructionLossWithDiscriminator(nn.Module):
     def __init__(self, disc_enabled: bool = True,
@@ -118,9 +145,10 @@ class ReconstructionLossWithDiscriminator(nn.Module):
                  perceptual_weight: float = 1.0,
                  gdl_loss_weight: float = 1.0,
                  color_loss_weight: float = 0.0,
-                 ssim_loss_weight: float = 0.0):
+                 ssim_loss_weight: float = 0.0,
+                 gp_weight: float = 10.0):
         super().__init__()
-        assert disc_loss in ["hinge", "vanilla"]
+        assert disc_loss in ["hinge", "vanilla", "wgan_gp"]
         self.codebook_weight = codebook_weight
 
         self.discriminator = PatchGANDiscriminator(input_nc=disc_in_channels,
@@ -129,12 +157,16 @@ class ReconstructionLossWithDiscriminator(nn.Module):
                                                    ndf=disc_ndf
                                                    ).apply(weights_init) if disc_enabled else None
         self.discriminator_iter_start = disc_start
+        self._disc_loss_name = disc_loss
         if disc_loss == "hinge":
             self.disc_loss = hinge_d_loss
         elif disc_loss == "vanilla":
             self.disc_loss = vanilla_d_loss
+        elif disc_loss == "wgan_gp":
+            self.disc_loss = wgan_gp_d_loss
         else:
             raise ValueError(f"Unknown GAN loss '{disc_loss}'.")
+        self._gp_weight = gp_weight
         rank_zero_log_only(logger, f"ReconstructionLossWithDiscriminator running with {disc_loss} loss.")
         self.disc_factor = disc_factor
         self.discriminator_weight = disc_weight  # discriminator factor
@@ -217,4 +249,13 @@ class ReconstructionLossWithDiscriminator(nn.Module):
                        "{}/logits_real".format(split): logits_real.detach().mean(),
                        "{}/logits_fake".format(split): logits_fake.detach().mean()
                        }
+
+                # WGAN-GP: add gradient penalty (from TUDA output-level adaptation)
+                if self._disc_loss_name == "wgan_gp":
+                    gp = compute_output_gradient_penalty(
+                        self.discriminator, gt.detach(), reconstructions.detach(), gt.device
+                    )
+                    d_loss = d_loss + self._gp_weight * gp
+                    log["{}/gp".format(split)] = gp.detach()
+
                 return d_loss, log
