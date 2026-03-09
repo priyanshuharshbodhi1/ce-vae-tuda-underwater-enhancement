@@ -35,17 +35,18 @@ model:
         disc_enabled: True
         disc_conditional: False
         disc_in_channels: 3
-        disc_start: 1500          # ~2.3 epochs warmup (v1 was 0 — catastrophic)
-        disc_weight: 0.3          # Conservative (v1 was 0.5 — too aggressive)
+        disc_start: 4000          # ~6+ epochs warmup (entire disc update skipped before this)
+        disc_weight: 0.15         # Conservative — adaptive weight further scales this
         disc_loss: wgan_gp        # TUDA-style WGAN-GP
         gp_weight: 10.0           # Standard gradient penalty weight
+        use_actnorm: True         # ActNorm instead of BatchNorm (required for WGAN-GP)
 
     optimizer:
       base_learning_rate: 4.5e-6  # Auto-scaled: effective_lr = 1 * 1 * 6 * 4.5e-6 = 2.7e-5
 
 lightning:
   trainer:
-    max_epochs: 20
+    max_epochs: 30
     accelerator: gpu
     devices: 1
     precision: 16-mixed
