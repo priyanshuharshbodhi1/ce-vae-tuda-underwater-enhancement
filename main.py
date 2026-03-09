@@ -5,7 +5,12 @@ import numpy as np
 from PIL import Image
 import torch
 import torchvision
-import wandb
+try:
+    import wandb
+    _wandb_available = True
+except ImportError:
+    wandb = None
+    _wandb_available = False
 import lightning as L
 from lightning import pytorch as pl
 from lightning import seed_everything
@@ -72,19 +77,22 @@ class SetupCallback(Callback):
             OmegaConf.save(self.config,
                            os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
 
-            # Log loss config details to logger
-            self.logger.log_hyperparams(self.config["model"]["params"]["lossconfig"]["params"])
-
-            # Log data config details to logger
-            self.logger.log_hyperparams(self.config["data"]["params"])
+            # Log config details to logger (try/except for non-wandb loggers)
+            try:
+                self.logger.log_hyperparams(self.config["model"]["params"]["lossconfig"]["params"])
+                self.logger.log_hyperparams(self.config["data"]["params"])
+            except Exception:
+                pass  # CSVLogger may not handle nested OmegaConf dicts
 
             rank_zero_log_only(logger, "Lightning config")
             rank_zero_log_only(logger, OmegaConf.to_yaml(self.lightning_config))
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
 
-            # Log lightning config details to logger
-            self.logger.log_hyperparams(self.lightning_config["trainer"])
+            try:
+                self.logger.log_hyperparams(self.lightning_config["trainer"])
+            except Exception:
+                pass
 
 
         else:
@@ -105,10 +113,9 @@ class ImageLogger(Callback):
         self.train_batch_freq = train_batch_frequency
         self.val_batch_freq = val_batch_frequency
         self.max_images = max_images
-        self.logger_log_images = {
-            pl.loggers.WandbLogger: self._wandb,
-            # pl.loggers.TestTubeLogger: self._testtube,
-        }
+        self.logger_log_images = {}
+        if _wandb_available:
+            self.logger_log_images[pl.loggers.WandbLogger] = self._wandb
         self.train_log_steps = [2 ** n for n in range(int(np.log2(self.train_batch_freq)) + 1)]
         self.val_log_steps = [2 ** n for n in range(int(np.log2(self.val_batch_freq)) + 1)]
         if not increase_log_steps:
@@ -272,9 +279,20 @@ if __name__ == "__main__":
     # trainer and callbacks
     trainer_kwargs = dict()
 
-    # default logger configs
-    default_logger_cfgs = {
-        "wandb": {
+    # default logger configs — use CSVLogger if wandb is unavailable or disabled
+    _wandb_disabled = (not _wandb_available or
+                       os.environ.get('WANDB_MODE', '').lower() == 'disabled')
+    if _wandb_disabled:
+        rank_zero_log_only(logger, "wandb disabled — using CSVLogger")
+        default_logger_cfg = {
+            "target": "lightning.pytorch.loggers.CSVLogger",
+            "params": {
+                "name": nowname,
+                "save_dir": logdir,
+            }
+        }
+    else:
+        default_logger_cfg = {
             "target": "pytorch_lightning.loggers.WandbLogger",
             "params": {
                 "name": nowname,
@@ -283,8 +301,6 @@ if __name__ == "__main__":
                 "project": "cevae"
             }
         }
-    }
-    default_logger_cfg = default_logger_cfgs["wandb"]
     logger_cfg = OmegaConf.create()
 
     logger_cfg = OmegaConf.merge(default_logger_cfg, logger_cfg)
